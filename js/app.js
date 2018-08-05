@@ -1,4 +1,4 @@
-var geoserverUrl = '/geoserver';
+var geoserverUrl = 'https://127.0.0.1:8082/geoserver';
 var pointerDown = false;
 var currentMarker = null;
 var changed = false;
@@ -88,13 +88,15 @@ function createMarker(point) {
 
 var sourceMarker = createMarker([-1.283147351126288, 36.822524070739746])
   .on('dragend', function(e) {
-    console.log('source marker dragend event');
+    currentMarker = e.target.getLatLng();
+    changed = true;
   })
   .addTo(map);
 
 var targetMarker = createMarker([-1.286107765621784, 36.83449745178223])
   .on('dragend', function(e) {
-    console.log('target marker dragend event');
+    currentMarker = e.target.getLatLng();
+    changed = true;
   })
   .addTo(map);
 
@@ -109,22 +111,24 @@ window.setInterval(function() {
 
 // WFS to get the closest vertex to a point on the map
 function getVertex(marker) {
-  var coordinates = marker.getLatLng();
   var url =
     geoserverUrl +
     '/wfs?service=WFS&version=1.0.0&' +
     'request=GetFeature&typeName=tutorial:nearest_vertex&' +
     'outputformat=application/json&' +
     'viewparams=x:' +
-    coordinates[0] +
+    marker.lng +
     ';y:' +
-    coordinates[1];
+    marker.lat;
   $.ajax({
     url: url,
     async: false,
     dataType: 'json',
     success: function(json) {
-      loadVertex(json, marker == sourceMarker);
+      loadVertex(
+        json,
+        marker.toString() === sourceMarker.getLatLng().toString()
+      );
     }
   });
 }
@@ -132,21 +136,22 @@ function getVertex(marker) {
 // load the response to the nearest_vertex layer
 function loadVertex(response, isSource) {
   var features = response.features;
-  if (isSource) {
-    if (features.length == 0) {
-      map.removeLayer(routeLayer);
-      source = null;
-      return;
-    }
-    source = features[0];
-  } else {
-    if (features.length == 0) {
-      map.removeLayer(routeLayer);
-      target = null;
-      return;
-    }
-    target = features[0];
-  }
+  console.log(response);
+  // if (isSource) {
+  //   if (features.length == 0) {
+  //     map.removeLayer(routeLayer);
+  //     source = null;
+  //     return;
+  //   }
+  //   source = features[0];
+  // } else {
+  //   if (features.length == 0) {
+  //     map.removeLayer(routeLayer);
+  //     target = null;
+  //     return;
+  //   }
+  //   target = features[0];
+  // }
 }
 
 function getRoute() {
