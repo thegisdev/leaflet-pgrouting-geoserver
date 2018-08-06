@@ -1,17 +1,17 @@
-var geoserverUrl = 'https://127.0.0.1:8082/geoserver';
-var pointerDown = false;
+var geoserverUrl = 'http://127.0.0.1:8082/geoserver';
 var currentMarker = null;
+var source = null;
+var target = null;
 var changed = false;
 var routeLayer;
-var routeSource;
-var travelTime;
-var travelDist;
 
 // initialize our map
 var map = L.map('map', {
   center: [-1.2836622060674874, 36.822524070739746],
   zoom: 15 //set the zoom level
 });
+
+var routeLayer = L.geoJSON(null);
 
 //add openstreet baselayer to the map
 var OSM = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -80,12 +80,13 @@ function formatDist(dist) {
   return dist + units;
 }
 
-// create a point with a colour and change handler
+// create a draggable marker
 function createMarker(point) {
   var marker = L.marker(point, { draggable: true });
   return marker;
 }
 
+// Initial source marker with ondragend handler
 var sourceMarker = createMarker([-1.283147351126288, 36.822524070739746])
   .on('dragend', function(e) {
     currentMarker = e.target.getLatLng();
@@ -93,6 +94,7 @@ var sourceMarker = createMarker([-1.283147351126288, 36.822524070739746])
   })
   .addTo(map);
 
+// initial target marker with ondragend handler
 var targetMarker = createMarker([-1.286107765621784, 36.83449745178223])
   .on('dragend', function(e) {
     currentMarker = e.target.getLatLng();
@@ -136,30 +138,26 @@ function getVertex(marker) {
 // load the response to the nearest_vertex layer
 function loadVertex(response, isSource) {
   var features = response.features;
-  console.log(response);
-  // if (isSource) {
-  //   if (features.length == 0) {
-  //     map.removeLayer(routeLayer);
-  //     source = null;
-  //     return;
-  //   }
-  //   source = features[0];
-  // } else {
-  //   if (features.length == 0) {
-  //     map.removeLayer(routeLayer);
-  //     target = null;
-  //     return;
-  //   }
-  //   target = features[0];
-  // }
+  if (isSource) {
+    if (features.length == 0) {
+      map.removeLayer(routeLayer);
+      source = null;
+      return;
+    }
+    source = features[0].properties.id;
+  } else {
+    if (features.length == 0) {
+      map.removeLayer(routeLayer);
+      target = null;
+      return;
+    }
+    target = features[0].properties.id;
+  }
 }
 
 function getRoute() {
-  // set up the source and target vertex numbers to pass as parameters
-  var viewParams = [
-    'source:' + source.getId().split('.')[1],
-    'target:' + target.getId().split('.')[1]
-  ];
+  // set up the source and target vertex ids to pass as parameters
+  var viewParams = ['source:' + source, 'target:' + target];
 
   var url =
     geoserverUrl +
@@ -169,19 +167,14 @@ function getRoute() {
     '&viewparams=' +
     viewParams.join(';');
 
-  // remove the previous layer and create a new one
-  map.removeLayer(routeLayer);
-
-  var routeLayer = L.geoJSON(null);
-
   $.getJSON(url, function(data) {
-    routeLayer.addData(data);
+    // remove the previous layer and create a new one
+    map.removeLayer(routeLayer);
+    routeLayer = L.geoJSON(data);
+    map.addLayer(routeLayer);
   });
-
-  // add the new layer to the map
-  map.addLayer(routeLayer);
 }
 
-getVertex(sourceMarker);
-getVertex(targetMarker);
+getVertex(sourceMarker.getLatLng());
+getVertex(targetMarker.getLatLng());
 getRoute();
