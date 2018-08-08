@@ -1,0 +1,137 @@
+======================================================================
+Finding the shortest Distance in a network with PgRouting and Dijkistra Algorithm
+
+Author:  Erick Otenyo
+Email : otenyo.erick@gmail.com
+Main References :  
+ - http://workshops.boundlessgeo.com/tutorial-routing/
+ - https://docs.pgrouting.org/2.5/en/index.html -  Pg Routing Docs
+
+Softwares:
+- PostgreSQL  = 9.5.13
+- Postgis =2.3.3
+- Pgrouting =2.5.2 
+- OS - OSGEO Live  Lubuntu 16.04
+
+======================================================================
+
+
+1 .  ===============Create database and create extensions==============
+
+createdb routing -U postgres
+psql -c "CREATE EXTENSION postgis;"  routing
+
+
+2. ================= Load network data to created dabase using ogr2ogr/osm2psql/shapeloader etc========
+
+Here I am using ogr2ogr to load roads.geojson(obtained from OSM)  for a section of Nairobi.
+
+ogr2ogr -select 'name,highway,oneway,surface' -lco GEOMETRY_NAME=the_geom -lco FID=id -f PostgreSQL PG:"dbname=routing user=postgres" -nln edges roads.geojson
+
+##########NOTE################
+-select ‘name,highway,oneway,surface’:  Take the desired attributes only
+-f PostgreSQL PG:”dbname=routing user=postgres”:  Load the data into Postgres
+-lco GEOMETRY_NAME=the_geom:  Store the geometry in an attribute named the_geom
+-lco FID=id:  Store the feature identifying numbers in an attribute named id
+-nln edges:  Store the data in a table called edges
+# -t_srs EPSG:3857: Convert the data to Google Mercator - Not used in the above code example  #
+
+
+3. ========================  Create pgrouting extension =============
+
+psql -U postgres routing
+CREATE EXTENSION pgrouting;
+
+4. ============= Add source and target  columns
+
+ALTER TABLE edges ADD source INT4;
+ALTER TABLE edges ADD target INT4;
+
+5. ============ Split nodes to be used in creating topology ==================
+
+SELECT pgr_nodeNetwork('edges', 0.00001);
+
+######NOTE#########
+We are using a tolerance of 0.00001 because our data is in EPSG:4326 (meter as projection unit - points have to be less than 0.00001 meters away from each other)
+Reference:
+https://gis.stackexchange.com/questions/229452/pgr-createtopology-how-tolerance
+
+
+6.  ================== Create topology=================
+
+SELECT pgr_createTopology('edges_noded', 0.00001);
+
+
+7. =================Copy  attribute information from the original table to the new noded table ===============
+
+ --------------- Add Columns first--------------------
+
+ALTER TABLE edges_noded
+ 	ADD COLUMN name VARCHAR,
+ 	ADD COLUMN type VARCHAR,
+
+-------------------- Copy the data from the original table-------------
+
+UPDATE edges_noded AS new
+ 	SET name=old.name, 
+ 	 type=old.highway 
+FROM edges as old
+WHERE new.old_id=old.id;
+
+8. ==================== Determine Cost====================
+
+We will simply use distance as the costing factor. Note you can also use other parameters like type of road, traffice etc..
+
+------------- Precalculate distance------------------------
++++++++Add Distance Column+++++++++++
+
+ALTER TABLE edges_noded ADD distance FLOAT8;
+
++++++++ Calculate distances in meters  ++++++++++++
+
+UPDATE edges_noded SET distance = ST_Length(ST_Transform(the_geom, 4326)::geography) / 1000;
+
+9. =================== Test shortest distance with Dijkistra algorithm =====================
+
+SELECT * FROM pgr_dijkstra('SELECT id,source,target,distance as cost FROM edges_noded',1,2,false);
+
+
+========================================================================================
+
+
+
+
+====================== Publishing to geoserver======================
+---------------- Nearest Vertex-------------------------
+SELECT
+  v.id,
+  v.the_geom,
+  string_agg(distinct(e.name),',') AS name
+FROM
+  edges_noded_vertices_pgr AS v,
+  edges_noded AS e
+WHERE
+  v.id = (SELECT
+            id
+          FROM edges_noded_vertices_pgr
+          ORDER BY the_geom <-> ST_SetSRID(ST_MakePoint(%x%, %y%), 4326) LIMIT 1)
+  AND (e.source = v.id OR e.target = v.id)
+GROUP BY v.id, v.the_geom
+
+--------------------- Validation--------------------------
+^[\d\.\+-eE]+$
+
+------------------------------- Shortest Path-------------------------------
+SELECT   min(r.seq) AS seq,e.old_id AS id,e.name,e.type,sum(e.distance) AS distance,ST_Collect(e.the_geom) AS geom FROM pgr_dijkstra('SELECT id,source,target,distance as cost FROM edges_noded',%source%,%target%,false) AS r,edges_noded AS e WHERE r.edge =e.id GROUP BY e.old_id,e.name,e.type
+ -------------- Validation--------------------------
+^[\d]+$
+
+
+
+
+
+
+
+
+
+
