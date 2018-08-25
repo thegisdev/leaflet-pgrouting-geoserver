@@ -20,6 +20,7 @@ Softwares:
 
 createdb routing -U postgres
 psql -U postgres -c "CREATE EXTENSION postgis;"  routing
+psql -U postgres -c "CREATE EXTENSION pgrouting;"  routing
 
 
 2. ================= Load network data to created dabase using ogr2ogr/osm2psql/shapeloader etc========
@@ -37,17 +38,12 @@ ogr2ogr -select 'name,highway,oneway,surface' -lco GEOMETRY_NAME=the_geom -lco F
 # -t_srs EPSG:3857: Convert the data to Google Mercator - Not used in the above code example  #
 
 
-3. ========================  Create pgrouting extension =============
-
-psql -U postgres routing
-CREATE EXTENSION pgrouting;
-
-4. ============= Add source and target  columns
+3. ============= Add source and target  columns
 
 ALTER TABLE edges ADD source INT4;
 ALTER TABLE edges ADD target INT4;
 
-5. ============ Split nodes to be used in creating topology ==================
+4. ============ Split nodes to be used in creating topology ==================
 
 SELECT pgr_nodeNetwork('edges', 0.00001);
 
@@ -57,12 +53,12 @@ Reference:
 https://gis.stackexchange.com/questions/229452/pgr-createtopology-how-tolerance
 
 
-6.  ================== Create topology=================
+5.  ================== Create topology=================
 
 SELECT pgr_createTopology('edges_noded', 0.00001);
 
 
-7. =================Copy  attribute information from the original table to the new noded table ===============
+6. =================Copy  attribute information from the original table to the new noded table ===============
 
  --------------- Add Columns first--------------------
 
@@ -78,7 +74,7 @@ UPDATE edges_noded AS new
 FROM edges as old
 WHERE new.old_id=old.id;
 
-8. ==================== Determine Cost====================
+7. ==================== Determine Cost====================
 
 We will simply use distance as the costing factor. Note you can also use other parameters like type of road, traffice etc..
 
@@ -91,7 +87,7 @@ ALTER TABLE edges_noded ADD distance FLOAT8;
 
 UPDATE edges_noded SET distance = ST_Length(ST_Transform(the_geom, 4326)::geography) / 1000;
 
-9. =================== Test shortest distance with Dijkistra algorithm =====================
+8. =================== Test shortest distance with Dijkistra algorithm =====================
 
 SELECT * FROM pgr_dijkstra('SELECT id,source,target,distance as cost FROM edges_noded',1,2,false);
 
