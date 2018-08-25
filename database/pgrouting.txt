@@ -40,6 +40,8 @@ ogr2ogr -select 'name,highway,oneway,surface' -lco GEOMETRY_NAME=the_geom -lco F
 
 3. ============= Add source and target  columns
 
+To accommodate pgr_createTopology, we need to add source and target columns to our edges table and then execute the command. Note that we have to indicate the name of the table (‘edges’) and the tolerance for considering two vertices the same in the network
+
 ALTER TABLE edges ADD source INT4;
 ALTER TABLE edges ADD target INT4;
 
