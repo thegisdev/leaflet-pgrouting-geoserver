@@ -19,7 +19,7 @@ Softwares:
 1 .  ===============Create database and create extensions==============
 
 createdb routing -U postgres
-psql -c "CREATE EXTENSION postgis;"  routing
+psql -U postgres -c "CREATE EXTENSION postgis;"  routing
 
 
 2. ================= Load network data to created dabase using ogr2ogr/osm2psql/shapeloader etc========
