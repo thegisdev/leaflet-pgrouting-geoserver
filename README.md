@@ -12,12 +12,15 @@ This repository contains the accompaning code and writeup for this [Youtube tuto
 
 ### Step 1: Create database with the required extensions
 Create database
+
 `createdb routing -U postgres`
 
 Add postgis extension
+
 `psql -U postgres -c "CREATE EXTENSION postgis;"  routing`\
 
 Add pgRouting extension
+
 `psql -U postgres -c "CREATE EXTENSION pgrouting;"  routing`
 
 
@@ -31,7 +34,7 @@ A few things note on the above ogr2ogr command:
 -  `-select ‘name,highway,oneway,surface’`:  Select the desired attributes/fields only from the data file. Other attributes in the data will not be imported
 -  `-f PostgreSQL PG:”dbname=routing user=postgres”`:  Load the data into Postgres
 - `-lco GEOMETRY_NAME=the_geom`:  Store the geometry in an field named the_geom
-- `nlco FID=id`:  Store the feature identifier in an field named id
+- `-nlco FID=id`:  Store the feature identifier in an field named id
 - `-nln edges`:  Store the data in a table called edges
 
 For more details on the possible options, please refer [this ogr2ogr](https://www.gdal.org/ogr2ogr.html) documentation
@@ -67,16 +70,16 @@ Details on `pgr_createTopology` function [here](https://docs.pgrouting.org/2.5/e
  **Add Columns first**
 ```
 ALTER TABLE edges_noded
- 	ADD COLUMN name VARCHAR,
- 	ADD COLUMN type VARCHAR;
+ ADD COLUMN name VARCHAR,
+ ADD COLUMN type VARCHAR;
  ```
 
 **Copy the data from the original table**
 
 ```
 UPDATE edges_noded AS new
- 	SET name=old.name, 
- 	 type=old.highway 
+ SET name=old.name, 
+   type=old.highway 
 FROM edges as old
 WHERE new.old_id=old.id;
 ```
@@ -85,7 +88,7 @@ WHERE new.old_id=old.id;
 
 We will simply use distance as the costing factor. Note you can also use other parameters like type of road, traffice etc..
 
-**Precalculate distance to save geoserver from calculating on each request**
+**Precalculate distance to save geoserver from calculating on each request:**
 
 **Add Distance Column**
 
@@ -129,7 +132,16 @@ To ensure that the sql view gets the correct parameters, add the below validatio
 
 2. **Shortest Path SQL View**
 ```
-SELECT min(r.seq) AS seq,e.old_id AS id,e.name,e.type,sum(e.distance) AS distance,ST_Collect(e.the_geom) AS geom FROM pgr_dijkstra('SELECT id,source,target,distance as cost FROM edges_noded',%source%,%target%,false) AS r,edges_noded AS e WHERE r.edge =e.id GROUP BY e.old_id,e.name,e.type
+SELECT
+ min(r.seq) AS seq,
+ e.old_id AS id,
+ e.name,
+ e.type,
+ sum(e.distance) AS distance,
+ST_Collect(e.the_geom) AS geom 
+ FROM pgr_dijkstra('SELECT id,source,target,distance AS cost 
+ FROM edges_noded',%source%,%target%,false) AS r,edges_noded AS e 
+ WHERE r.edge=e.id GROUP BY e.old_id,e.name,e.type
 ```
  **Validation**
  Ensure parameters are integers
