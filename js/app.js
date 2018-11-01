@@ -1,178 +1,87 @@
-var geoserverUrl = 'http://127.0.0.1:8082/geoserver';
-var currentMarker = null;
+var geoserverUrl = "http://127.0.0.1:8082/geoserver";
+var selectedPoint = null;
+
 var source = null;
 var target = null;
-var changed = false;
-var routeLayer;
 
 // initialize our map
-var map = L.map('map', {
-  center: [-1.2836622060674874, 36.822524070739746],
-  zoom: 15 //set the zoom level
+var map = L.map("map", {
+	center: [-1.2836622060674874, 36.822524070739746],
+	zoom: 16 //set the zoom level
 });
 
-var routeLayer = L.geoJSON(null);
+//add openstreet map baselayer to the map
+var OpenStreetMap = L.tileLayer(
+	"http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+	{
+		maxZoom: 19,
+		attribution:
+			'&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+	}
+).addTo(map);
 
-//add openstreet baselayer to the map
-var OSM = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution:
-    '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-}).addTo(map);
+// empty geojson layer for the shortes path result
+var pathLayer = L.geoJSON(null);
 
-// format a single place name
-function formatPlace(name) {
-  if (name == null || name == '') {
-    return 'unnamed street';
-  } else {
-    return name;
-  }
+// draggable marker for starting point. Note the marker is initialized with an initial starting position
+var sourceMarker = L.marker([-1.283147351126288, 36.822524070739746], {
+	draggable: true
+})
+	.on("dragend", function(e) {
+		selectedPoint = e.target.getLatLng();
+		getVertex(selectedPoint);
+		getRoute();
+	})
+	.addTo(map);
+
+// draggbale marker for destination point.Note the marker is initialized with an initial destination positon
+var targetMarker = L.marker([-1.286107765621784, 36.83449745178223], {
+	draggable: true
+})
+	.on("dragend", function(e) {
+		selectedPoint = e.target.getLatLng();
+		getVertex(selectedPoint);
+		getRoute();
+	})
+	.addTo(map);
+
+// function to get nearest vertex to the passed point
+function getVertex(selectedPoint) {
+	var url = `${geoserverUrl}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=routing:nearest_vertex&outputformat=application/json&viewparams=x:${
+		selectedPoint.lng
+	};y:${selectedPoint.lat};`;
+	$.ajax({
+		url: url,
+		async: false,
+		success: function(data) {
+			loadVertex(
+				data,
+				selectedPoint.toString() === sourceMarker.getLatLng().toString()
+			);
+		}
+	});
 }
 
-// format the list of place names, which may be single roads or intersections
-function formatPlaces(list) {
-  var text;
-  if (!list) {
-    return formatPlace(null);
-  }
-  var names = list.split(',');
-  if (names.length == 0) {
-    return formatPlace(null);
-  } else if (names.length == 1) {
-    return formatPlace(names[0]);
-  } else if (names.length == 2) {
-    text = formatPlace(names[0]) + ' and ' + formatPlace(names[1]);
-  } else {
-    text = ' and ' + formatPlace(names.pop());
-    names.forEach(function(name) {
-      text = name + ', ' + text;
-    });
-  }
-
-  return 'the intersection of ' + text;
-}
-
-// format times for display
-function formatTime(time) {
-  var mins = Math.round(time * 60);
-  if (mins == 0) {
-    return 'less than a minute';
-  } else if (mins == 1) {
-    return '1 minute';
-  } else {
-    return mins + ' minutes';
-  }
-}
-
-// format distances for display
-function formatDist(dist) {
-  var units;
-  dist = dist.toPrecision(2);
-  if (dist < 1) {
-    dist = dist * 1000;
-    units = 'm';
-  } else {
-    units = 'km';
-  }
-
-  // make sure distances like 5.0 appear as just 5
-  dist = dist.toString().replace(/[.]0$/, '');
-  return dist + units;
-}
-
-// create a draggable marker
-function createMarker(point) {
-  var marker = L.marker(point, { draggable: true });
-  return marker;
-}
-
-// Initial source marker with ondragend handler
-var sourceMarker = createMarker([-1.283147351126288, 36.822524070739746])
-  .on('dragend', function(e) {
-    currentMarker = e.target.getLatLng();
-    changed = true;
-  })
-  .addTo(map);
-
-// initial target marker with ondragend handler
-var targetMarker = createMarker([-1.286107765621784, 36.83449745178223])
-  .on('dragend', function(e) {
-    currentMarker = e.target.getLatLng();
-    changed = true;
-  })
-  .addTo(map);
-
-// timer to update the route when dragging
-window.setInterval(function() {
-  if (currentMarker && changed) {
-    getVertex(currentMarker);
-    getRoute();
-    changed = false;
-  }
-}, 250);
-
-// WFS to get the closest vertex to a point on the map
-function getVertex(marker) {
-  var url =
-    geoserverUrl +
-    '/wfs?service=WFS&version=1.0.0&' +
-    'request=GetFeature&typeName=tutorial:nearest_vertex&' +
-    'outputformat=application/json&' +
-    'viewparams=x:' +
-    marker.lng +
-    ';y:' +
-    marker.lat;
-  $.ajax({
-    url: url,
-    async: false,
-    dataType: 'json',
-    success: function(json) {
-      loadVertex(
-        json,
-        marker.toString() === sourceMarker.getLatLng().toString()
-      );
-    }
-  });
-}
-
-// load the response to the nearest_vertex layer
+// function to update the source and target nodes as returned from geoserver for later querying
 function loadVertex(response, isSource) {
-  var features = response.features;
-  if (isSource) {
-    if (features.length == 0) {
-      map.removeLayer(routeLayer);
-      source = null;
-      return;
-    }
-    source = features[0].properties.id;
-  } else {
-    if (features.length == 0) {
-      map.removeLayer(routeLayer);
-      target = null;
-      return;
-    }
-    target = features[0].properties.id;
-  }
+	var features = response.features;
+	map.removeLayer(pathLayer);
+	if (isSource) {
+		source = features[0].properties.id;
+	} else {
+		target = features[0].properties.id;
+	}
 }
 
+// function to get the shortest path from the give source and target nodes
 function getRoute() {
-  // set up the source and target vertex ids to pass as parameters
-  var viewParams = ['source:' + source, 'target:' + target];
+	var url = `${geoserverUrl}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=routing:shortest_path&outputformat=application/json&viewparams=source:${source};target:${target};`;
 
-  var url =
-    geoserverUrl +
-    '/wfs?service=WFS&version=1.0.0&' +
-    'request=GetFeature&typeName=tutorial:shortest_path&' +
-    'outputformat=application/json&' +
-    '&viewparams=' +
-    viewParams.join(';');
-
-  $.getJSON(url, function(data) {
-    // remove the previous layer and create a new one
-    map.removeLayer(routeLayer);
-    routeLayer = L.geoJSON(data);
-    map.addLayer(routeLayer);
-  });
+	$.getJSON(url, function(data) {
+		map.removeLayer(pathLayer);
+		pathLayer = L.geoJSON(data);
+		map.addLayer(pathLayer);
+	});
 }
 
 getVertex(sourceMarker.getLatLng());
