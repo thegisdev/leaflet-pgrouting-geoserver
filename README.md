@@ -106,7 +106,7 @@ For details on `pgr_dijkstra` please [check here](https://docs.pgrouting.org/2.5
 
 
 ### Step 9: Publishing to geoserver
-Create 2  a parameterized SQL Views to have the following code:
+Create  2 parameterized SQL Views to have the following code:
 
 1. **Nearest Vertex SQL View**
 ```
