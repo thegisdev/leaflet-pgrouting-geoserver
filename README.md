@@ -26,7 +26,7 @@ Add pgRouting extension
 
 ### Step 2: Load network data to db using ogr2ogr/osm2psql/shapeloader etc..
 
-Here I am using ogr2ogr to load roads.geojson (obtained from OSM)  for a section of Nairobi.
+Here we are using ogr2ogr to load roads.geojson (obtained from OSM)  for a section of Nairobi.
 
 `ogr2ogr -select 'name,highway,oneway,surface' -lco GEOMETRY_NAME=the_geom -lco FID=id -f PostgreSQL PG:"dbname=routing user=postgres" -nln edges roads.geojson`
 
