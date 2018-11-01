@@ -11,28 +11,28 @@ This repository contains the accompaning code and writeup for this [Youtube tuto
 - OS used in this example - [OSGEO Live - Lubuntu](https://live.osgeo.org/en/index.html)
 
 ### Step 1: Create database with the required extensions
-Create database
+Create database - `here named as routing`. Replace `<user>` with your database user.
 
-`createdb routing -U postgres`
+`createdb routing -U <user>`
 
-Add postgis extension
+Add postgis extension:
 
-`psql -U postgres -c "CREATE EXTENSION postgis;"  routing`\
+`psql -U <user> -c "CREATE EXTENSION postgis;"  routing`
 
-Add pgRouting extension
+Add pgRouting extension:
 
-`psql -U postgres -c "CREATE EXTENSION pgrouting;"  routing`
+`psql -U <user> -c "CREATE EXTENSION pgrouting;"  routing`
 
 
 ### Step 2: Load network data to db using ogr2ogr/osm2psql/shapeloader etc..
 
-Here we are using ogr2ogr to load roads.geojson (obtained from OSM)  for a section of Nairobi.
+Here we are using ogr2ogr to load roads.geojson (obtained from OSM)  for a section of Nairobi. Again do not forget to replace `<user>` with your database user.
 
-`ogr2ogr -select 'name,highway,oneway,surface' -lco GEOMETRY_NAME=the_geom -lco FID=id -f PostgreSQL PG:"dbname=routing user=postgres" -nln edges roads.geojson`
+`ogr2ogr -select 'name,highway,oneway,surface' -lco GEOMETRY_NAME=the_geom -lco FID=id -f PostgreSQL PG:"dbname=routing user=<user>" -nln edges roads.geojson`
 
 A few things note on the above ogr2ogr command:
 -  `-select ‘name,highway,oneway,surface’`:  Select the desired attributes/fields only from the data file. Other attributes in the data will not be imported
--  `-f PostgreSQL PG:”dbname=routing user=postgres”`:  Load the data into Postgres
+-  `-f PostgreSQL PG:”dbname=routing user=<user>`:  Load the data into Postgres with `<user>` and db `routing`
 - `-lco GEOMETRY_NAME=the_geom`:  Store the geometry in an field named the_geom
 - `-nlco FID=id`:  Store the feature identifier in an field named id
 - `-nln edges`:  Store the data in a table called edges
@@ -42,7 +42,13 @@ For more details on the possible options, please refer [this ogr2ogr](https://ww
 
 ### Step 3: Add source and target  columns
 
-To accommodate `pgr_createTopology`, we need to add source and target columns to our edges table and then execute the command. Note that we have to indicate the name of the table (‘edges’) and the tolerance for considering two vertices the same in the network
+To accommodate `pgr_createTopology`, we need to add source and target columns to our edges table and then execute the command. Note that we have to indicate the name of the table (‘edges’) and the tolerance for considering two vertices the same in the network.
+
+** First fire up the `psql` client with the correct `user` and `database`:**
+
+`psql -U <user> -d routing`
+
+**And then create the columns by the following:**
 
 `ALTER TABLE edges ADD source INT4;`
 `ALTER TABLE edges ADD target INT4;`
@@ -67,14 +73,14 @@ Details on `pgr_createTopology` function [here](https://docs.pgrouting.org/2.5/e
 
 ### Step 6 : Copy  attribute information from the original table to the new noded table
 
- **Add Columns first**
+ **Add Columns first:**
 ```
 ALTER TABLE edges_noded
  ADD COLUMN name VARCHAR,
  ADD COLUMN type VARCHAR;
  ```
 
-**Copy the data from the original table**
+**Copy the data from the original table:**
 
 ```
 UPDATE edges_noded AS new
@@ -94,7 +100,7 @@ We will simply use distance as the costing factor. Note you can also use other p
 
 `ALTER TABLE edges_noded ADD distance FLOAT8;`
 
-**Calculate distances in meters**
+**Calculate distances in meters:**
 
 `UPDATE edges_noded SET distance = ST_Length(ST_Transform(the_geom, 4326)::geography) / 1000;`
 
