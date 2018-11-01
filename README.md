@@ -92,7 +92,7 @@ WHERE new.old_id=old.id;
 
 ### Step 7: Determine Cost
 
-We will simply use distance as the costing factor. Note you can also use other parameters like type of road, traffice etc..
+We will simply use distance as the costing factor. Note you can also use other parameters like type of road, traffic etc..
 
 **Precalculate distance to save geoserver from calculating on each request:**
 
