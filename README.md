@@ -1,4 +1,4 @@
-# Finding the shortest Distance in a road network with PgRouting + Geoserver + Leaflet JS
+# Finding the shortest path in a road network with PgRouting + Geoserver + Leaflet JS
 
 This repository contains the accompaning code and writeup for this [Youtube tutorial series](https://www.youtube.com/watch?v=6gfdQmFkVmE&list=PLaOYwKHOUv7Z2KyZNTXhLhwYm-XeEs34H) I did on creating a routing web app with pgRouting together with Geoserver and Leaflet JS.
 
@@ -104,7 +104,7 @@ We will simply use distance as the costing factor. Note you can also use other p
 
 `UPDATE edges_noded SET distance = ST_Length(ST_Transform(the_geom, 4326)::geography) / 1000;`
 
-### Step 8 : Test shortest distance with Dijkistra algorithm
+### Step 8 : Test shortest path with Dijkistra algorithm
 
 `SELECT * FROM pgr_dijkstra('SELECT id,source,target,distance as cost FROM edges_noded',1,2,false);`
 
