@@ -33,8 +33,8 @@ Here we are using ogr2ogr to load roads.geojson (obtained from OSM)  for a secti
 A few things note on the above ogr2ogr command:
 -  `-select ‘name,highway,oneway,surface’`:  Select the desired attributes/fields only from the data file. Other attributes in the data will not be imported
 -  `-f PostgreSQL PG:”dbname=routing user=<user>`:  Load the data into Postgres with `<user>` and db `routing`
-- `-lco GEOMETRY_NAME=the_geom`:  Store the geometry in an field named the_geom
-- `-nlco FID=id`:  Store the feature identifier in an field named id
+- `-lco GEOMETRY_NAME=the_geom`:  Store the geometry in a field named the_geom
+- `-nlco FID=id`:  Store the feature identifier in a field named id
 - `-nln edges`:  Store the data in a table called edges
 
 For more details on the possible options, please refer [this ogr2ogr](https://www.gdal.org/ogr2ogr.html) documentation
