@@ -42,7 +42,7 @@ For more details on the possible options, please refer [this ogr2ogr](https://ww
 
 ### Step 3: Add source and target  columns
 
-To accommodate `pgr_createTopology`, we need to add source and target columns to our edges table and then execute the command. Note that we have to indicate the name of the table (‘edges’) and the tolerance for considering two vertices the same in the network.
+To accommodate `pgr_createTopology`, we need to add source and target columns to our edges table and then execute the command. Note that we have to indicate the name of the table (‘edges’) and the tolerance for considering two vertices as the same in the network.
 
 **First fire up the `psql` client with the correct `user` and `database`:**
 
