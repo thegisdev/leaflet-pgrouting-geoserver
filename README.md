@@ -48,7 +48,7 @@ To accommodate `pgr_createTopology`, we need to add source and target columns to
 
 `psql -U <user> -d routing`
 
-**And then create the columns by the following:**
+**And then create the columns by typing the following:**
 
 `ALTER TABLE edges ADD source INT4;`
 `ALTER TABLE edges ADD target INT4;`
